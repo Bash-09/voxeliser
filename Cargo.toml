@@ -23,3 +23,4 @@ glium_app = { git = "https://github.com/Bash-09/glium-app" }
 easy-gltf = "0.1.4"
 obj-rs = "0.7.0"
 rfd = "0.10.0"
+threadpool = "1.8.1"

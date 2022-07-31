@@ -2,9 +2,8 @@ use std::path::Path;
 
 use glam::{EulerRot, Mat4, Vec3};
 use glium::{
-    draw_parameters,
-    uniform, BackfaceCullingMode, Depth, Display, DrawParameters, Frame,
-    Program, Surface,
+    draw_parameters, uniform, BackfaceCullingMode, Depth, Display, DrawParameters, Frame, Program,
+    Surface,
 };
 
 use crate::model::Model;
@@ -42,11 +41,7 @@ impl Renderer {
         }
     }
 
-    pub fn render_model(
-        &mut self,
-        target: &mut Frame,
-        model: &Model,
-    ) {
+    pub fn render_model(&mut self, target: &mut Frame, model: &Model) {
         let params = DrawParameters {
             depth: Depth {
                 test: draw_parameters::DepthTest::IfLess,

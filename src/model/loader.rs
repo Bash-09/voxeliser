@@ -1,6 +1,6 @@
 use std::{fs::File, io::BufReader, path::PathBuf};
 
-use obj::{TexturedVertex, load_obj};
+use obj::{load_obj, TexturedVertex};
 
 use super::vertex::Vertex;
 
@@ -36,9 +36,7 @@ pub fn load_model(file: PathBuf) -> Result<(Vec<Vertex>, Vec<usize>), String> {
                     let verts: Vec<Vertex> = obj
                         .vertices
                         .iter()
-                        .map(|v| {
-                            Vertex::new(v.position, v.normal)
-                        })
+                        .map(|v| Vertex::new(v.position, v.normal))
                         .collect();
 
                     Ok((verts, inds))
