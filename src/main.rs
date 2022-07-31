@@ -178,21 +178,23 @@ impl Application for App {
                         if ui.button("Generate voxel model").clicked() {
                             self.incoming_voxel_model = Some(generate_voxels(&self.model.as_ref().unwrap(), self.voxel_scale));
                         }
-                        
-                        ui.add(egui::DragValue::new(&mut self.voxel_scale).speed(0.01));
+                        ui.horizontal(|ui| {
+                            ui.add(egui::DragValue::new(&mut self.voxel_scale).speed(0.01));
+                            ui.label("Voxel size");
+                        });
                     });
                 });
-            }
 
-            // Generating voxel window
-            if self.incoming_voxel_model.is_some() {
-                egui::Window::new("Generating voxels")
-                .anchor(Align2::CENTER_CENTER, Vec2::new(0.0, 0.0))
-                .collapsible(false)
-                .resizable(false)
-                .show(gui_ctx, |ui| {
-                    ui.label("This may take a little bit");
-                });
+                // Generating voxel window
+                if self.incoming_voxel_model.is_some() {
+                    egui::Window::new("Generating voxels")
+                    .anchor(Align2::CENTER_CENTER, Vec2::new(0.0, 0.0))
+                    .collapsible(false)
+                    .resizable(false)
+                    .show(gui_ctx, |ui| {
+                        ui.label("This may take a little bit");
+                    });
+                }
             }
         });
         ctx.gui.paint(&ctx.dis, &mut target);
