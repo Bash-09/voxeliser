@@ -18,5 +18,6 @@ Run `cargo run --release`
 
 # Demo images
 
+![Video demonstration of voxelising 3D model](demo/voxel_demo_vid.gif)
 ![Demonstration of a voxellised 3D model](demo/Voxels.png)
 ![Demonstration of a transformed and then voxellised 3D model](demo/Voxels2.png)
