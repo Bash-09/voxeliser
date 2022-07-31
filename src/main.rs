@@ -1,3 +1,5 @@
+use std::sync::mpsc::{Receiver, TryRecvError};
+
 use egui::{Align2, Vec2};
 use egui_winit::winit::{
     dpi::PhysicalSize,
@@ -7,9 +9,10 @@ use egui_winit::winit::{
 use glam::Vec3;
 use glium::{Display, Surface};
 use glium_app::{context::Context, Application};
-use model::{loader, Model};
+use model::{loader, Model, vertex::Vertex};
 use renderer::Renderer;
 use rfd::FileDialog;
+use voxeliser::generate_voxels;
 
 pub mod model;
 pub mod renderer;
@@ -33,6 +36,8 @@ struct App {
 
     model: Option<Model>,
     voxel_model: Option<Model>,
+    incoming_voxel_model: Option<Receiver<(Vec<Vertex>, Vec<usize>)>>,
+    voxel_scale: f32,
 
     mouse_grabbed: bool,
 }
@@ -52,12 +57,29 @@ impl Application for App {
             self.move_camera(ctx, t.delta());
         }
 
+        if let Some(rx) = &mut self.incoming_voxel_model {
+            match rx.try_recv() {
+                Ok((verts, inds)) => {
+                    self.voxel_model = Some(Model::new(&ctx.dis, verts, inds));
+                    self.incoming_voxel_model = None;
+                },
+                Err(TryRecvError::Disconnected) => panic!("Failed to receive incoming voxel model"),
+                _ => {}
+            }
+        }
+
         // Render gui
         let mut target = ctx.dis.draw();
         target.clear_color_and_depth((0.5, 0.7, 0.8, 1.0), 1.0);
 
         // Scene
         if let Some(model) = &self.model {
+            self.renderer
+                .as_mut()
+                .unwrap()
+                .render_model(&mut target, model);
+        }
+        if let Some(model) = &self.voxel_model {
             self.renderer
                 .as_mut()
                 .unwrap()
@@ -93,28 +115,35 @@ impl Application for App {
                     }
                     resp.on_hover_text("This will remove the current model");
 
-                    let resp = ui.button("Move Camera");
-                    if resp.clicked() {
-                        self.mouse_grabbed = true;
-                    }
-                    resp.on_hover_text("Press escape at any time to stop");
-
-                    if ui.button("Reset camera").clicked() {
-                        self.renderer
-                            .as_mut()
-                            .unwrap()
-                            .cam
-                            .set_pos(Vec3::new(0.0, 1.0, 3.0));
-                        self.renderer
-                            .as_mut()
-                            .unwrap()
-                            .cam
-                            .set_rot(Vec3::new(180.0, 0.0, 0.0));
-                    }
+                    ui.collapsing("Camera settings", |ui| {
+                        let resp = ui.button("Move Camera");
+                        if resp.clicked() {
+                            self.mouse_grabbed = true;
+                        }
+                        resp.on_hover_text("Press escape at any time to stop");
+    
+                        if ui.button("Reset camera").clicked() {
+                            self.renderer
+                                .as_mut()
+                                .unwrap()
+                                .cam
+                                .set_pos(Vec3::new(0.0, 1.0, 3.0));
+                            self.renderer
+                                .as_mut()
+                                .unwrap()
+                                .cam
+                                .set_rot(Vec3::new(180.0, 0.0, 0.0));
+                        }
+                    });
 
                     // Model settings
                     let model = self.model.as_mut().unwrap();
                     ui.collapsing("Model Settings", |ui| {
+                        if ui.button("Reset model").clicked() {
+                            model.pos = Vec3::splat(0.0);
+                            model.rot = Vec3::splat(0.0);
+                            model.scale = 1.0;
+                        }
                         ui.horizontal(|ui| {
                             ui.add(egui::DragValue::new(&mut model.scale).speed(0.01));
                             ui.label("Scale");
@@ -144,6 +173,25 @@ impl Application for App {
                             ui.label("Rot Z");
                         });
                     });
+
+                    ui.collapsing("Voxel settings", |ui| {
+                        if ui.button("Generate voxel model").clicked() {
+                            self.incoming_voxel_model = Some(generate_voxels(&self.model.as_ref().unwrap(), self.voxel_scale));
+                        }
+                        
+                        ui.add(egui::DragValue::new(&mut self.voxel_scale).speed(0.01));
+                    });
+                });
+            }
+
+            // Generating voxel window
+            if self.incoming_voxel_model.is_some() {
+                egui::Window::new("Generating voxels")
+                .anchor(Align2::CENTER_CENTER, Vec2::new(0.0, 0.0))
+                .collapsible(false)
+                .resizable(false)
+                .show(gui_ctx, |ui| {
+                    ui.label("This may take a little bit");
                 });
             }
         });
@@ -183,6 +231,8 @@ impl App {
             renderer: None,
             model: None,
             voxel_model: None,
+            incoming_voxel_model: None,
+            voxel_scale: 0.05,
             mouse_grabbed: false,
         }
     }
