@@ -8,5 +8,8 @@ When running the program, it will prompt the user to import a 3D model by select
 
 Currently there is no way to export or save a voxel model, you can just look at it for now.
 
+Note:
+This currently uses a very primitive technique of checking if the bounding-box of each triangle collides with the bound-box of each voxel, which means models with large polygons can have poor results.
+
 ![Demonstration of a voxellised 3D model](demo/Voxels.png)
 ![Demonstration of a transformed and then voxellised 3D model](demo/Voxels2.png)
