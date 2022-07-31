@@ -1,6 +1,6 @@
-use std::{sync::{Arc, mpsc::{self, Receiver, Sender}}, thread, time::Duration, slice::SliceIndex};
+use std::{sync::{Arc, mpsc::{self, Receiver, Sender}}, thread, time::Duration};
 
-use glam::{EulerRot, Vec3, Mat4, Vec4Swizzles, IVec3};
+use glam::{EulerRot, Vec3, Mat4, Vec4Swizzles};
 use threadpool::ThreadPool;
 
 use crate::model::{Model, vertex::Vertex};
@@ -34,7 +34,7 @@ pub fn generate_voxels(model: &Model, scale: f32) -> Receiver<(Vec<Vertex>, Vec<
     thread::spawn(move || {
         let (tx, rx) = mpsc::channel::<(usize, usize, usize, bool)>();
 
-        let pool = ThreadPool::new(8);
+        let pool = ThreadPool::new(16);
 
         let mut min = model_data.verts[0].pos;
         for v in &model_data.verts {
@@ -139,51 +139,33 @@ pub fn generate_voxels(model: &Model, scale: f32) -> Receiver<(Vec<Vertex>, Vec<
 
 fn generate_voxel(tx: Sender<(usize, usize, usize, bool)>, model: Arc<ModelData>, min: Vec3, x: usize, y: usize, z: usize, size: f32) {
     let mut overlap = false;
-    // for i in 0..(model.inds.len() / 3) {
-    //     let v1 = model.verts[model.inds[i * 3]];
-    //     let v2 = model.verts[model.inds[i * 3 + 1]];
-    //     let v3 = model.verts[model.inds[i * 3 + 2]];
+
+    let v_min = min + Vec3::new(x as f32 * size, y as f32 * size, z as f32 * size);
+    let v_max = v_min + Vec3::splat(size);
+
+    for i in 0..(model.inds.len() / 3) {
+        let v1 = model.verts[model.inds[i * 3]];
+        let v2 = model.verts[model.inds[i * 3 + 1]];
+        let v3 = model.verts[model.inds[i * 3 + 2]];
         
-    //     let t_min = Vec3::new(
-    //         v1.pos[0].min(v2.pos[0].min(v3.pos[0])),
-    //         v1.pos[1].min(v2.pos[1].min(v3.pos[1])),
-    //         v1.pos[2].min(v2.pos[2].min(v3.pos[2]))
-    //     );
-    //     let t_max = Vec3::new(
-    //         v1.pos[0].max(v2.pos[0].max(v3.pos[0])),
-    //         v1.pos[1].max(v2.pos[1].max(v3.pos[1])),
-    //         v1.pos[2].max(v2.pos[2].max(v3.pos[2]))
-    //     );
+        let t_min = Vec3::new(
+            v1.pos[0].min(v2.pos[0].min(v3.pos[0])),
+            v1.pos[1].min(v2.pos[1].min(v3.pos[1])),
+            v1.pos[2].min(v2.pos[2].min(v3.pos[2]))
+        );
+        let t_max = Vec3::new(
+            v1.pos[0].max(v2.pos[0].max(v3.pos[0])),
+            v1.pos[1].max(v2.pos[1].max(v3.pos[1])),
+            v1.pos[2].max(v2.pos[2].max(v3.pos[2]))
+        );
 
-    //     let v_min = min;
-    //     let v_max = min + Vec3::splat(size);
+        if v_min.x <= t_max.x && v_max.x >= t_min.x
+            && v_min.y <= t_max.y && v_max.y >= t_min.y
+            && v_min.z <= t_max.z && v_max.z >= t_min.z {
 
-    //     // if v1.pos[0] >= min.x && v1.pos[0] <= min.x + size
-    //     // && v1.pos[1] >= min.y && v1.pos[1] <= min.y + size
-    //     // && v1.pos[2] >= min.z && v1.pos[2] <= min.z + size {
-    //     //     overlap = true;
-    //     //     break;
-    //     // }
-
-    //     // if v_min.x <= t_max.x && v_max.x >= t_min.x
-    //     //     && v_min.y <= t_max.y && v_max.y >= t_min.y
-    //     //     && v_min.z <= t_max.z && v_max.z >= t_min.z {
-
-    //     //     overlap = true;
-    //     //     break;
-    //     // }
-
-    //     // if t_max.x > v_min.x && t_min.x < v_max.x &&
-    //     // t_max.y > v_min.y && t_min.y < v_max.y &&
-    //     // t_max.z > v_min.z && t_min.z < v_max.z {
-    //     //     overlap = true;
-    //     //     break;
-    //     // }
-
-    // }
-
-    if x%2 == 0 && y%2 == 0 && z%2 == 0 {
-        overlap = true;
+            overlap = true;
+            break;
+        }
     }
 
     if let Err(e) = tx.send((x, y, z, overlap)) {
